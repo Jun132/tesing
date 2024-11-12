@@ -2,61 +2,118 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="color-scheme" content="light only"/>
-	<meta name="supported-color-schemes" content="light"/>
-    
-    <!-- PDF.js CDN 링크 추가 -->
+    <title>PDF eBook Viewer</title>
+    <style>
+        /* PDF 컨테이너 스타일 */
+        #pdf-container {
+            text-align: center;
+            margin: auto;
+            max-width: 1000px;
+            background-color: #f3f3f3;
+        }
+        #pdf-canvas {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+        }
+        /* 버튼 스타일 */
+        #nav-buttons {
+            margin-top: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+    <!-- PDF.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
 </head>
-
 <body style="background-color:rgb(0, 40, 112);">
-    
-    <!-- 첫 번째 이미지 -->
+
+    <div id="pdf-container">
+        <canvas id="pdf-canvas"></canvas>
+        <div id="nav-buttons">
+            <button id="prev-page">Previous</button>
+            <span>Page: <span id="page-num">1</span> / <span id="page-count"></span></span>
+            <button id="next-page">Next</button>
+        </div>
+    </div>
     <div style="margin: auto; max-width: 1000px;">
         <img src="Bg03.png" style="max-width: 100%; height: auto;">
     </div>
 
-    <!-- PDF를 표시할 Canvas 요소 -->
-    <div style="margin: auto; max-width: 1000px; text-align: center;">
-        <canvas id="pdf-canvas" style="width: 100%; height: auto;"></canvas>
-    </div>
-
-    <!-- 두 번째 이미지 -->
-    <div style="margin: auto; max-width: 1000px;">
-        <img src="Bg02.png" style="max-width: 100%; height: auto;">
-    </div>
-
     <script>
-        const url = '1.pdf';  // 표시할 PDF 파일의 경로 설정
+        const url = 'your-file.pdf';  // PDF 파일 경로 설정
 
-        // PDF.js의 Worker 설정 (CDN 경로)
+        let pdfDoc = null,  // PDF 문서 객체
+            pageNum = 1,     // 현재 페이지
+            pageRendering = false, // 렌더링 상태
+            pageNumPending = null, // 대기 중인 페이지
+            scale = 1.5,     // 확대 비율
+            canvas = document.getElementById('pdf-canvas'),
+            ctx = canvas.getContext('2d');
+
+        // PDF 파일 로드 및 페이지 수 설정
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+        
+        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+            pdfDoc = pdfDoc_;
+            document.getElementById('page-count').textContent = pdfDoc.numPages;
+            renderPage(pageNum);
+        });
 
-        // PDF를 Canvas에 렌더링하는 함수
-        async function renderPDF() {
-            try {
-                const pdf = await pdfjsLib.getDocument(url).promise;
-                const page = await pdf.getPage(1);  // 첫 번째 페이지 로드
-
-                const canvas = document.getElementById('pdf-canvas');
-                const context = canvas.getContext('2d');
-
-                // 페이지의 뷰포트 설정
-                const viewport = page.getViewport({ scale: 1.5 });
+        // 페이지 렌더링 함수
+        function renderPage(num) {
+            pageRendering = true;
+            pdfDoc.getPage(num).then(page => {
+                const viewport = page.getViewport({ scale: scale });
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
 
-                // PDF 페이지를 Canvas에 렌더링
-                await page.render({
-                    canvasContext: context,
+                const renderContext = {
+                    canvasContext: ctx,
                     viewport: viewport
-                }).promise;
-            } catch (error) {
-                console.error('PDF를 로드하는 중 오류가 발생했습니다:', error);
+                };
+
+                const renderTask = page.render(renderContext);
+                renderTask.promise.then(() => {
+                    pageRendering = false;
+                    if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+            });
+
+            document.getElementById('page-num').textContent = num;
+        }
+
+        // 페이지 큐에 추가
+        function queueRenderPage(num) {
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
             }
         }
 
-        renderPDF();  // PDF 렌더링 함수 호출
+        // 이전 페이지 버튼
+        document.getElementById('prev-page').addEventListener('click', () => {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        });
+
+        // 다음 페이지 버튼
+        document.getElementById('next-page').addEventListener('click', () => {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        });
     </script>
+    <div style="margin: auto; max-width: 1000px;">
+        <img src="Bg02.png" style="max-width: 100%; height: auto;">
+    </div>
 </body>
 </html>
