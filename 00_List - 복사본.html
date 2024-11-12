@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light only"/>
+	<meta name="supported-color-schemes" content="light"/>
+    
+    <!-- PDF.js CDN 링크 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+</head>
+
+<body style="background-color:rgb(0, 40, 112);">
+    
+    <!-- 첫 번째 이미지 -->
+    <div style="margin: auto; max-width: 1000px;">
+        <img src="Bg03.png" style="max-width: 100%; height: auto;">
+    </div>
+
+    <!-- PDF를 표시할 Canvas 요소 -->
+    <div style="margin: auto; max-width: 1000px; text-align: center;">
+        <canvas id="pdf-canvas" style="width: 100%; height: auto;"></canvas>
+    </div>
+
+    <!-- 두 번째 이미지 -->
+    <div style="margin: auto; max-width: 1000px;">
+        <img src="Bg02.png" style="max-width: 100%; height: auto;">
+    </div>
+
+    <script>
+        const url = '1.pdf';  // 표시할 PDF 파일의 경로 설정
+
+        // PDF.js의 Worker 설정 (CDN 경로)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+        // PDF를 Canvas에 렌더링하는 함수
+        async function renderPDF() {
+            try {
+                const pdf = await pdfjsLib.getDocument(url).promise;
+                const page = await pdf.getPage(1);  // 첫 번째 페이지 로드
+
+                const canvas = document.getElementById('pdf-canvas');
+                const context = canvas.getContext('2d');
+
+                // 페이지의 뷰포트 설정
+                const viewport = page.getViewport({ scale: 1.5 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+
+                // PDF 페이지를 Canvas에 렌더링
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+            } catch (error) {
+                console.error('PDF를 로드하는 중 오류가 발생했습니다:', error);
+            }
+        }
+
+        renderPDF();  // PDF 렌더링 함수 호출
+    </script>
+</body>
+</html>
